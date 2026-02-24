@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Assistant AI Agent — Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #7c6af7;
+    --accent2: #f76a8f;
+    --accent3: #6af7c8;
+    --accent4: #f7c86a;
+    --text: #e8e8f0;
+    --muted: #6e6e8a;
+    --glow: rgba(124, 106, 247, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,247,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,247,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 64px;
+    animation: fadeDown 0.8s ease both;
+  }
+
+  .header-badge {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 14px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+  }
+
+  .header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .header p {
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+  }
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    animation: fadeUp 0.8s ease 0.2s both;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .arrow-down {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0;
+  }
+
+  .arrow-h {
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .node {
+    border-radius: 14px;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+  }
+
+  .node:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .node-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0.6;
+  }
+
+  .node-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .node-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .node-tag {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  .node-employer { border-color: rgba(247,106,143,0.4); background: linear-gradient(135deg,#1a1220,var(--surface)); min-width:200px; }
+  .node-employer .node-label { color: var(--accent2); }
+  .node-employer .node-tag { background: rgba(247,106,143,0.15); color: var(--accent2); }
+
+  .node-primary { border-color: rgba(124,106,247,0.5); background: linear-gradient(135deg,#131228,var(--surface)); min-width:240px; box-shadow: 0 0 40px var(--glow); }
+  .node-primary .node-label { color: var(--accent); }
+  .node-primary .node-tag { background: rgba(124,106,247,0.15); color: var(--accent); }
+
+  .node-evaluator { border-color: rgba(106,247,200,0.4); background: linear-gradient(135deg,#0e1a18,var(--surface)); min-width:220px; }
+  .node-evaluator .node-label { color: var(--accent3); }
+  .node-evaluator .node-tag { background: rgba(106,247,200,0.15); color: var(--accent3); }
+
+  .node-tool { border-color: rgba(247,200,106,0.35); background: linear-gradient(135deg,#1a1610,var(--surface)); min-width:160px; }
+  .node-tool .node-label { color: var(--accent4); }
+  .node-tool .node-tag { background: rgba(247,200,106,0.15); color: var(--accent4); }
+
+  .node-output { border-color: rgba(247,106,143,0.3); background: linear-gradient(135deg,#1a1015,var(--surface)); min-width:200px; }
+  .node-output .node-label { color: var(--accent2); }
+
+  .decision-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  .decision {
+    width: 160px;
+    height: 56px;
+    background: var(--surface2);
+    border: 1px solid rgba(124,106,247,0.4);
+    transform: skewX(-12deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .decision span {
+    transform: skewX(12deg);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .branch-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 60px;
+    margin-top: 12px;
+  }
+
+  .branch-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    max-width: 240px;
+  }
+
+  .branch-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+
+  .branch-label.yes { color: var(--accent3); background: rgba(106,247,200,0.08); }
+  .branch-label.no  { color: var(--accent2); background: rgba(247,106,143,0.08); }
+
+  .vdiv {
+    width: 1px;
+    background: var(--border);
+    height: 40px;
+    margin: 0 auto;
+  }
+
+  .tools-section {
+    margin-top: 40px;
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    animation: fadeUp 0.8s ease 0.4s both;
+  }
+
+  .tools-section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent4);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+  }
+
+  .tool-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.2s;
+  }
+
+  .tool-card:hover { border-color: var(--accent4); }
+  .tool-icon { font-size: 20px; margin-bottom: 8px; }
+  .tool-card-title { font-size: 12px; font-weight: 600; color: var(--accent4); margin-bottom: 4px; }
+  .tool-card-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  .stack-section {
+    margin-top: 24px;
+    padding: 24px 28px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    animation: fadeUp 0.8s ease 0.5s both;
+  }
+
+  .stack-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .stack-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .pill {
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: var(--surface2);
+    letter-spacing: 0.05em;
+  }
+
+  .pill.p { border-color: rgba(124,106,247,0.4); color: var(--accent); }
+  .pill.g { border-color: rgba(106,247,200,0.4); color: var(--accent3); }
+  .pill.y { border-color: rgba(247,200,106,0.4); color: var(--accent4); }
+  .pill.r { border-color: rgba(247,106,143,0.4); color: var(--accent2); }
+
+  .pulse-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent3);
+    display: inline-block;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(20px);  } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.7); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-badge">System Architecture</div>
+    <h1>Career Assistant AI Agent</h1>
+    <p>Multi-agent pipeline with self-evaluation, tool invocation &amp; human-in-the-loop</p>
+  </div>
+
+  <div class="flow">
+
+    <!-- Employer -->
+    <div class="row">
+      <div class="node node-employer">
+        <div class="node-label">Input</div>
+        <div class="node-title">👤 Employer / Recruiter</div>
+        <div class="node-desc">Sends a message via the Gradio chat interface</div>
+        <span class="node-tag">Web UI</span>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32"><line x1="12" y1="0" x2="12" y2="24" stroke="#6e6e8a" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="6,20 18,20 12,30" fill="#6e6e8a"/></svg>
+    </div>
+
+    <!-- Notify + Primary Agent -->
+    <div class="row" style="gap:24px; align-items:flex-start;">
+      <div class="node node-tool" style="align-self:center;">
+        <div class="node-label">Side Effect</div>
+        <div class="node-title">🔔 Push Notify</div>
+        <div class="node-desc">Pushover alert: new message arrived</div>
+        <span class="node-tag">Pushover API</span>
+      </div>
+      <div class="arrow-h">→</div>
+      <div class="node node-primary">
+        <div class="node-label">Primary Agent</div>
+        <div class="node-title">🤖 Career Agent</div>
+        <div class="node-desc">Generates a professional response using CV context (LinkedIn PDF + summary.txt)</div>
+        <span class="node-tag">GPT-4o-mini</span>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32"><line x1="12" y1="0" x2="12" y2="24" stroke="#6e6e8a" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="6,20 18,20 12,30" fill="#6e6e8a"/></svg>
+    </div>
+
+    <!-- Tool invocation -->
+    <div class="row" style="gap:24px; align-items:center;">
+      <div class="node node-primary" style="min-width:200px;">
+        <div class="node-label">Tool Check</div>
+        <div class="node-title">🔧 Tool Invocation</div>
+        <div class="node-desc">Does the agent need a tool?</div>
+      </div>
+      <div class="arrow-h">→</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="node node-tool" style="min-width:190px;">
+          <div class="node-label">Tool A</div>
+          <div class="node-title">📧 Record Email</div>
+          <div class="node-desc">Saves user contact &amp; notifies</div>
+        </div>
+        <div class="node node-tool" style="min-width:190px;">
+          <div class="node-label">Tool B</div>
+          <div class="node-title">❓ Unknown Question</div>
+          <div class="node-desc">Logs + triggers human alert</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32"><line x1="12" y1="0" x2="12" y2="24" stroke="#6e6e8a" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="6,20 18,20 12,30" fill="#6e6e8a"/></svg>
+    </div>
+
+    <!-- Evaluator -->
+    <div class="row">
+      <div class="node node-evaluator">
+        <div class="node-label">Critic Agent</div>
+        <div class="node-title">🧪 Response Evaluator</div>
+        <div class="node-desc">Checks: tone · clarity · completeness · safety · relevance. Returns <code style="color:var(--accent3)">is_acceptable</code> + feedback.</div>
+        <span class="node-tag">GPT-4o-mini · Pydantic</span>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32"><line x1="12" y1="0" x2="12" y2="24" stroke="#6e6e8a" stroke-width="1.5" stroke-dasharray="4 3"/><polygon points="6,20 18,20 12,30" fill="#6e6e8a"/></svg>
+    </div>
+
+    <!-- Decision -->
+    <div class="decision-wrap">
+      <div class="decision"><span>is_acceptable?</span></div>
+    </div>
+
+    <!-- Branches -->
+    <div class="branch-row">
+      <div class="branch-col">
+        <div class="branch-label yes">✓ YES</div>
+        <div class="vdiv"></div>
+        <div class="node node-output">
+          <div class="node-label">Output</div>
+          <div class="node-title">✅ Send Response</div>
+          <div class="node-desc">Approved reply sent to employer. Pushover "approved &amp; sent" notification fired.</div>
+        </div>
+      </div>
+      <div class="branch-col">
+        <div class="branch-label no">✗ NO</div>
+        <div class="vdiv"></div>
+        <div class="node node-primary">
+          <div class="node-label">Retry</div>
+          <div class="node-title">🔄 Rerun Agent</div>
+          <div class="node-desc">Career agent retries with evaluator feedback injected into system prompt. Loops back to Evaluator.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tools section -->
+  <div class="tools-section">
+    <div class="tools-section-title">
+      <span class="pulse-dot"></span>
+      External Tools &amp; Integrations
+    </div>
+    <div class="tools-grid">
+      <div class="tool-card">
+        <div class="tool-icon">🔔</div>
+        <div class="tool-card-title">Pushover API</div>
+        <div class="tool-card-desc">Mobile push notifications for new messages, approvals, and unknown question alerts.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon">📄</div>
+        <div class="tool-card-title">LinkedIn PDF + Summary</div>
+        <div class="tool-card-desc">Static CV context parsed with pypdf and injected into the system prompt at startup.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon">🖥️</div>
+        <div class="tool-card-title">Gradio UI</div>
+        <div class="tool-card-desc">Chat interface for employers. Maintains conversation history across turns.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon">🧠</div>
+        <div class="tool-card-title">GPT-4o-mini</div>
+        <div class="tool-card-desc">Powers both the primary Career Agent and the Evaluator/Critic agent via OpenAI API.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stack -->
+  <div class="stack-section">
+    <div class="stack-title">Tech Stack</div>
+    <div class="stack-pills">
+      <span class="pill p">Python 3.11</span>
+      <span class="pill p">OpenAI API</span>
+      <span class="pill g">GPT-4o-mini</span>
+      <span class="pill g">Pydantic</span>
+      <span class="pill y">Gradio</span>
+      <span class="pill y">pypdf</span>
+      <span class="pill r">Pushover</span>
+      <span class="pill r">python-dotenv</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
